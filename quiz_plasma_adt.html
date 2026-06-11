@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Quiz — Traitement Plasma ADT</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #2D3142; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .card { background: #fff; border-radius: 16px; max-width: 680px; width: 100%; padding: 36px 40px; box-shadow: 0 8px 40px rgba(0,0,0,0.3); }
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .q-num { font-size: 13px; color: #888; }
+  .progress-bar { height: 6px; background: #eee; border-radius: 3px; margin-bottom: 24px; }
+  .progress-fill { height: 100%; background: #D62B2B; border-radius: 3px; transition: width 0.4s; }
+  .slide-ref { display: inline-block; font-size: 11px; color: #999; background: #f5f5f5; border: 1px solid #e8e8e8; border-radius: 4px; padding: 3px 8px; margin-bottom: 14px; }
+  .q-text { font-size: 18px; font-weight: 600; color: #1a1a2e; line-height: 1.5; margin-bottom: 24px; }
+  .multi-hint { font-size: 12px; color: #D62B2B; font-weight: 500; margin-top: -16px; margin-bottom: 18px; }
+  .options { display: flex; flex-direction: column; gap: 10px; }
+  .opt { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-radius: 12px; border: 1.5px solid #e8e8e8; background: #fafafa; cursor: pointer; transition: all 0.15s; user-select: none; }
+  .opt:hover:not(.locked) { border-color: #2D3142; background: #f0f1f5; }
+  .opt.selected:not(.locked) { border-color: #2D3142; background: #eef0f7; }
+  .opt.correct { border-color: #2ecc71; background: #eafaf1; }
+  .opt.wrong { border-color: #e74c3c; background: #fdf0ef; }
+  .opt-badge { width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #555; flex-shrink: 0; transition: all 0.15s; }
+  .opt.selected:not(.locked) .opt-badge { background: #2D3142; color: #fff; }
+  .opt.correct .opt-badge { background: #2ecc71; color: #fff; }
+  .opt.wrong .opt-badge { background: #e74c3c; color: #fff; }
+  .opt-text { font-size: 15px; color: #2a2a2a; line-height: 1.4; }
+  .feedback { margin-top: 16px; padding: 13px 16px; border-radius: 10px; border-left: 4px solid #2ecc71; background: #f4fdf8; font-size: 13px; color: #444; line-height: 1.6; display: none; }
+  .feedback.show { display: block; }
+  .feedback.wrong-fb { border-color: #e74c3c; background: #fdf5f5; }
+  .btn-row { margin-top: 20px; display: flex; gap: 12px; }
+  .btn-validate { padding: 11px 24px; border-radius: 10px; border: none; background: #D62B2B; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; display: none; }
+  .btn-validate.show { display: inline-block; }
+  .btn-validate:hover { background: #b52222; }
+  .btn-next { padding: 11px 24px; border-radius: 10px; border: 1.5px solid #ddd; background: #fff; color: #333; font-size: 15px; cursor: pointer; display: none; }
+  .btn-next.show { display: inline-block; }
+  .btn-next:hover { background: #f5f5f5; }
+
+  /* Intro */
+  .intro { text-align: center; }
+  .intro-logo { width: 72px; height: 72px; border-radius: 50%; background: #D62B2B; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 36px; color: #fff; font-weight: 700; }
+  .intro h1 { font-size: 24px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
+  .intro p { font-size: 15px; color: #666; margin-bottom: 28px; line-height: 1.6; }
+  .intro-meta { display: flex; justify-content: center; gap: 24px; margin-bottom: 28px; }
+  .meta-item { text-align: center; }
+  .meta-num { font-size: 28px; font-weight: 700; color: #D62B2B; }
+  .meta-label { font-size: 12px; color: #999; }
+  .btn-start { padding: 14px 36px; border-radius: 12px; border: none; background: #D62B2B; color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; }
+  .btn-start:hover { background: #b52222; }
+
+  /* Result */
+  .result { text-align: center; }
+  .score-circle { width: 110px; height: 110px; border-radius: 50%; border: 4px solid #D62B2B; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto 20px; }
+  .score-big { font-size: 36px; font-weight: 700; color: #1a1a2e; line-height: 1; }
+  .score-den { font-size: 14px; color: #999; }
+  .result h2 { font-size: 22px; font-weight: 700; color: #1a1a2e; margin-bottom: 6px; }
+  .result p { font-size: 15px; color: #666; margin-bottom: 24px; }
+  .recap { text-align: left; display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+  .recap-item { display: flex; gap: 12px; padding: 10px 14px; border-radius: 10px; border: 1.5px solid #eee; background: #fafafa; align-items: flex-start; }
+  .recap-item.ok { border-color: #2ecc71; background: #f4fdf8; }
+  .recap-item.ko { border-color: #e74c3c; background: #fdf5f5; }
+  .recap-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .recap-item.ok .recap-icon { color: #2ecc71; }
+  .recap-item.ko .recap-icon { color: #e74c3c; }
+  .recap-q { font-size: 13px; font-weight: 600; color: #1a1a2e; }
+  .recap-a { font-size: 12px; color: #666; margin-top: 3px; }
+  .btn-restart { padding: 11px 28px; border-radius: 10px; border: 1.5px solid #ddd; background: #fff; color: #333; font-size: 15px; cursor: pointer; }
+  .btn-restart:hover { background: #f5f5f5; }
+
+  @media (max-width: 500px) {
+    .card { padding: 24px 20px; }
+    .q-text { font-size: 16px; }
+    .opt-text { font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="card" id="app"></div>
+<script>
+const questions = [
+  {
+    slide: "Slide 4 — Principe & fonctionnement",
+    q: "Quand on augmente la pression d'air sur la torche, que se passe-t-il ?",
+    multi: false,
+    opts: [
+      "La flamme devient plus concentrée et l'effet est plus intense",
+      "La flamme devient plus large et la puissance est diluée",
+      "La puissance délivrée augmente proportionnellement",
+      "Le générateur passe en mode basse fréquence"
+    ],
+    ans: [1],
+    expl: "Comme indiqué sur le slide : « Plus d'air → flamme plus large, puissance diluée. Moins d'air → zone concentrée, effet intense. »"
+  },
+  {
+    slide: "Slide 6 — L'énergie de surface",
+    q: "Qu'indique le slide pour un substrat avec une énergie de surface inférieure à 30 mN/m ?",
+    multi: false,
+    opts: [
+      "Mouillage partiel, tenue variable selon le produit",
+      "Bon étalement, adhérence acceptable sans traitement",
+      "Mouillage difficile — les encres et colles ne tiennent souvent pas",
+      "Traitement recommandé mais non obligatoire"
+    ],
+    ans: [2],
+    expl: "En dessous de 30 mN/m, la surface est trop inerte : le mouillage est difficile et les encres et colles ne tiennent souvent pas."
+  },
+  {
+    slide: "Slide 8 — Les encres test",
+    q: "Combien de temps a-t-on pour lire le résultat d'une encre test après la dépose ?",
+    multi: false,
+    opts: [
+      "Immédiatement, dès que l'encre touche la surface",
+      "Dans les 5 premières secondes",
+      "Dans les 30 premières secondes",
+      "Dans la première minute"
+    ],
+    ans: [1],
+    expl: "Le slide précise : « Le résultat se lit pendant les 5 premières secondes après la dépose. L'encre peut finir par se rétracter naturellement. »"
+  },
+  {
+    slide: "Slide 10 — Les systèmes ADT",
+    q: "Quelle est la largeur de traitement de l'AD-B50 (buse fixe) ?",
+    multi: false,
+    opts: [
+      "Jusqu'à 5 mm",
+      "8 à 17 mm",
+      "20 à 30 mm",
+      "30 à 50 mm"
+    ],
+    ans: [0],
+    expl: "L'AD-B50 (buse fixe) couvre jusqu'à 5 mm. L'AD-BR50 (tête rotative) couvre 30 à 50 mm."
+  },
+  {
+    slide: "Slide 12 — Paramètres du procédé",
+    q: "Quelle est la bonne méthode de dimensionnement décrite dans la formation ?",
+    multi: false,
+    opts: [
+      "Faire varier la puissance, mesurer, puis fixer vitesse et pression",
+      "Fixer une puissance, et faire ensuite varier la pression d'air pour ajuster l'intensité de la flamme et trouver le bon équilibre",
+      "Fixer la vitesse, faire varier la puissance, valider avec un test d'arrachement",
+      "Tester toutes les combinaisons possibles simultanément"
+    ],
+    ans: [1],
+    expl: "La méthode décrite : fixer une puissance d'entrée, puis faire varier la pression d'air pour ajuster l'intensité de la flamme, mesurer avec les encres test et qualifier."
+  },
+  {
+    slide: "Slide 13 — Applications industrielles",
+    q: "Dans les applications industrielles, quels avantages sont mis en avant ? (2 bonnes réponses)",
+    multi: true,
+    opts: [
+      "Réduction du temps de cycle de production",
+      "Remplacement des primaires chimiques dangereux (COV)",
+      "Amélioration de la résistance thermique des pièces",
+      "Compatibilité avec les lignes d'extrusion haute cadence"
+    ],
+    ans: [0, 1],
+    expl: "Le slide cite deux avantages clés : la réduction du temps de cycle et le remplacement des primaires chimiques dangereux (COV) dans l'automobile et l'aéronautique."
+  }
+];
+
+let current = 0;
+let score = 0;
+let answered = [];
+let selected = [];
+const app = document.getElementById('app');
+
+function renderIntro() {
+  app.innerHTML = `
+    <div class="intro">
+      <div class="intro-logo">?</div>
+      <h1>Quiz — Traitement Plasma ADT</h1>
+      <p>Testez vos connaissances sur la formation<br>Traitement de surface par torche plasma atmosphérique</p>
+      <div class="intro-meta">
+        <div class="meta-item"><div class="meta-num">${questions.length}</div><div class="meta-label">questions</div></div>
+        <div class="meta-item"><div class="meta-num">~3</div><div class="meta-label">minutes</div></div>
+      </div>
+      <button class="btn-start" onclick="startQuiz()">Démarrer le quiz →</button>
+    </div>`;
+}
+
+function startQuiz() { current = 0; score = 0; answered = []; renderQ(); }
+
+function renderQ() {
+  if (current >= questions.length) { renderResult(); return; }
+  const q = questions[current];
+  selected = [];
+  const letters = ['A','B','C','D'];
+  const pct = Math.round((current / questions.length) * 100);
+  app.innerHTML = `
+    <div class="header">
+      <span class="q-num">Question ${current + 1} / ${questions.length}</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+    <span class="slide-ref">📊 ${q.slide}</span>
+    <p class="q-text">${q.q}</p>
+    ${q.multi ? '<p class="multi-hint">Sélectionnez 2 réponses</p>' : ''}
+    <div class="options" id="opts">
+      ${q.opts.map((o,i) => `<div class="opt" id="opt-${i}" onclick="select(${i})">
+        <div class="opt-badge">${letters[i]}</div>
+        <span class="opt-text">${o}</span>
+      </div>`).join('')}
+    </div>
+    <div class="feedback" id="fb">${q.expl}</div>
+    <div class="btn-row">
+      <button class="btn-validate ${q.multi ? 'show' : ''}" id="btn-val" onclick="validate()">Valider</button>
+      <button class="btn-next" id="btn-next" onclick="next()">${current === questions.length - 1 ? 'Voir mon résultat →' : 'Question suivante →'}</button>
+    </div>`;
+}
+
+function select(idx) {
+  const q = questions[current];
+  if (document.querySelector('.opt.correct, .opt.wrong')) return;
+  const optEl = document.getElementById('opt-' + idx);
+  if (!q.multi) {
+    selected = [idx];
+    document.querySelectorAll('.opt').forEach(o => o.classList.remove('selected'));
+    optEl.classList.add('selected');
+    validate();
+  } else {
+    if (selected.includes(idx)) {
+      selected = selected.filter(i => i !== idx);
+      optEl.classList.remove('selected');
+    } else if (selected.length < q.ans.length) {
+      selected.push(idx);
+      optEl.classList.add('selected');
+    }
+    document.getElementById('btn-val').classList.add('show');
+  }
+}
+
+function validate() {
+  const q = questions[current];
+  if (selected.length === 0) return;
+  document.querySelectorAll('.opt').forEach(o => { o.classList.add('locked'); o.style.cursor = 'default'; });
+  const isCorrect = q.ans.length === selected.length && q.ans.every(a => selected.includes(a));
+  selected.forEach(i => {
+    document.getElementById('opt-' + i).classList.add(q.ans.includes(i) ? 'correct' : 'wrong');
+  });
+  q.ans.forEach(i => document.getElementById('opt-' + i).classList.add('correct'));
+  const fb = document.getElementById('fb');
+  fb.classList.add('show');
+  if (!isCorrect) fb.classList.add('wrong-fb');
+  if (isCorrect) score++;
+  answered.push({ q: q.q.substring(0, 60) + '…', ok: isCorrect, ans: q.ans.map(i => q.opts[i]).join(' + ') });
+  document.getElementById('btn-val').classList.remove('show');
+  document.getElementById('btn-next').classList.add('show');
+}
+
+function next() { current++; renderQ(); }
+
+function renderResult() {
+  const levels = [
+    [0, 2, "À retravailler", "Reprenez les slides indiqués dans le récapitulatif."],
+    [3, 4, "Pas mal !", "Quelques notions à revoir."],
+    [5, 5, "Très bien !", "Bonne maîtrise de la formation."],
+    [6, 6, "Score parfait !", "Vous avez tout retenu !"]
+  ];
+  const [,,title, sub] = levels.find(([a,b]) => score >= a && score <= b);
+  app.innerHTML = `
+    <div class="result">
+      <div class="score-circle">
+        <span class="score-big">${score}</span>
+        <span class="score-den">/ ${questions.length}</span>
+      </div>
+      <h2>${title}</h2>
+      <p>${sub}</p>
+      <div class="recap">${answered.map(a => `
+        <div class="recap-item ${a.ok ? 'ok' : 'ko'}">
+          <span class="recap-icon">${a.ok ? '✓' : '✗'}</span>
+          <div>
+            <p class="recap-q">${a.q}</p>
+            ${!a.ok ? `<p class="recap-a">Bonne réponse : ${a.ans}</p>` : ''}
+          </div>
+        </div>`).join('')}
+      </div>
+      <button class="btn-restart" onclick="startQuiz()">↺ Recommencer</button>
+    </div>`;
+}
+
+renderIntro();
+</script>
+</body>
+</html>
